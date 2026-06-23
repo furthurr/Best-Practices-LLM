@@ -4,7 +4,7 @@ Referencia compilada de guías oficiales de los principales proveedores de LLMs.
 
 **Fuentes:** Anthropic (Claude), OpenAI (GPT), Google (Gemini), xAI (Grok), Meta (LLaMA), DeepSeek
 
-**Fecha:** 2026-03-28
+**Fecha:** 2026-06-22
 
 ---
 
@@ -40,11 +40,17 @@ Estos principios aplican a TODOS los modelos:
 
 Fuente: [docs.anthropic.com](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/claude-prompting-best-practices)
 
-### Modelos actuales (Marzo 2026)
+### Modelos actuales (Junio 2026)
 
-- **Claude Opus 4.6** — Máxima capacidad, tareas complejas de largo alcance
-- **Claude Sonnet 4.6** — Equilibrio entre velocidad, costo e inteligencia
-- **Claude Haiku 4.5** — Rápido y económico para tareas simples
+- **Claude Fable 5** (`claude-fable-5`) — El modelo más capaz de disponibilidad general. Para el razonamiento más exigente y trabajo agentic de largo alcance. Adaptive thinking siempre activo. 1M contexto, 128K output. ($10 / $50 por MTok)
+- **Claude Mythos 5** (`claude-mythos-5`) — Sucesor de Claude Mythos Preview; disponibilidad limitada vía Project Glasswing (acceso por invitación)
+- **Claude Opus 4.8** (`claude-opus-4-8`) — El modelo Opus más capaz para razonamiento complejo y coding agentic. Flagship recomendado para empezar. 1M contexto, 128K output, cutoff de conocimiento Ene 2026. ($5 / $25 por MTok)
+- **Claude Sonnet 4.6** (`claude-sonnet-4-6`) — El mejor equilibrio entre velocidad e inteligencia. 1M contexto. ($3 / $15 por MTok)
+- **Claude Haiku 4.5** (`claude-haiku-4-5`) — El modelo más rápido con inteligencia casi-frontier. 200K contexto. ($1 / $5 por MTok)
+
+> **Legacy (aún disponibles):** Opus 4.7, Opus 4.6, Sonnet 4.5, Opus 4.5. Opus 4.1 está deprecado (retiro: 2026-08-05).
+>
+> **Nota de naming:** desde la generación 4.6 los IDs usan formato sin fecha (`claude-opus-4-8`) pero siguen siendo snapshots fijos, no punteros evergreen.
 
 ### Principios clave
 
@@ -92,37 +98,54 @@ Tu tarea es analizar...
 - Para reducir markdown: describe el estilo deseado en positivo ("escribe en prosa fluida con párrafos completos")
 - Para formatos específicos: usa XML format indicators
 - La forma del prompt influencia la forma de la respuesta
-- Claude Opus 4.6 usa LaTeX por defecto para matemáticas — desactívalo con instrucciones explícitas si prefieres texto plano
+- Claude Opus 4.8 usa LaTeX por defecto para matemáticas — desactívalo con instrucciones explícitas si prefieres texto plano
 
 ### Verbosidad
 
-- Claude 4.6 es más conciso por defecto que versiones anteriores
+- Los modelos Claude 4.x recientes son más concisos por defecto que versiones anteriores
 - Si quieres más detalle, pídelo: "proporciona un resumen después de cada tool call"
 - Los modelos más nuevos omiten verbalizaciones innecesarias
 
 ### Tool Use
 
 - **Instrucciones explícitas:** Si quieres que Claude tome acción, sé explícito: "Cambia esta función" en lugar de "¿Puedes sugerir cambios?"
-- **Parallel tool calling:** Claude 4.6 ejecuta múltiples herramientas en paralelo automáticamente. Puedes guiar este comportamiento con prompts.
+- **Parallel tool calling:** Claude (4.6+) ejecuta múltiples herramientas en paralelo automáticamente. Puedes guiar este comportamiento con prompts.
 - **Proactividad:** Puedes hacer que Claude sea más proactivo o más conservador mediante system prompts.
 
-### Thinking and Reasoning (NUEVO)
+### Thinking, Reasoning y parámetro `effort`
 
-Claude 4.6 introduce **adaptive thinking** donde el modelo decide dinámicamente cuándo y cuánto pensar:
+Los modelos recientes usan **adaptive thinking**: el modelo decide dinámicamente cuándo y cuánto pensar. Fable 5 y Mythos 5 lo tienen **siempre activo** (`thinking: {type: "disabled"}` es rechazado); en Opus 4.8/4.7/4.6 y Sonnet 4.6 se activa con `thinking: {type: "adaptive"}`.
 
-- **Configuración:** `thinking: {type: "adaptive"}`
-- **Control de esfuerzo:** Usa el parámetro `effort` ("low", "medium", "high", "max") en lugar de `budget_tokens`
-- **Cuándo usar:** Tareas complejas multi-paso, agentic coding, razonamiento extendido
-- **Ejemplo:**
+El control recomendado de profundidad es el parámetro **`effort`** (reemplaza a `budget_tokens`, que está deprecado). Afecta a **TODOS** los tokens de la respuesta: texto, llamadas a herramientas y thinking.
+
+**Niveles de `effort`** (de mayor a menor gasto):
+
+| Nivel | Uso típico | Disponibilidad de los niveles tope |
+|---|---|---|
+| `max` | Razonamiento más profundo, sin límite de tokens | Fable 5, Mythos 5, Opus 4.8/4.7/4.6, Sonnet 4.6 |
+| `xhigh` | Trabajo agentic/coding de largo alcance (>30 min, millones de tokens) | Fable 5, Mythos 5, Opus 4.8, Opus 4.7 |
+| `high` | **Default.** Razonamiento complejo, coding difícil, tareas agenticas | Todos |
+| `medium` | Equilibrio velocidad/costo/rendimiento | Todos |
+| `low` | Máxima eficiencia (subagentes, tareas simples, latencia baja) | Todos |
+
+- **Default:** el API usa `high` en todas las superficies (incluido Claude Code). `effort: "high"` ≡ omitir el parámetro.
+- **Opus 4.8 (y 4.7):** empieza con `xhigh` para coding/agentic; usa `high` para el resto de cargas sensibles a inteligencia; baja a `medium`/`low` solo si tus evals confirman que mantienen calidad.
+- **Fable 5 (y Mythos 5):** empieza con `high` (default); usa `xhigh` para lo más exigente; `medium`/`low` rinden bien en trabajo rutinario.
+- **Sonnet 4.6:** se recomienda fijar `medium` explícitamente como default para evitar latencia inesperada.
+- En `xhigh`/`max`, fija un `max_tokens` grande (64K es un buen punto de partida) para dar espacio a thinking + tool calls.
+- En Opus 4.8/4.7, el thinking manual (`thinking: {type:"enabled", budget_tokens:N}`) **ya no se soporta y devuelve error 400**; usa adaptive thinking + `effort`.
+
 ```python
 client.messages.create(
-    model="claude-opus-4-6",
+    model="claude-opus-4-8",
     max_tokens=64000,
     thinking={"type": "adaptive"},
-    output_config={"effort": "high"},
+    output_config={"effort": "xhigh"},  # coding/agentic
     messages=[{"role": "user", "content": "..."}],
 )
 ```
+
+> **Tip Claude Code:** el modo `ultracode` = `effort: xhigh` + permiso para lanzar workflows multi-agente; no es un nivel de `effort` adicional del API.
 
 ### Agentic Systems
 
@@ -131,12 +154,13 @@ client.messages.create(
 - **Multi-context workflows:** Usa diferentes prompts para la primera ventana de contexto
 - **State management:** Usa formatos estructurados (JSON) para datos de estado, git para tracking
 
-### Migración desde versiones anteriores
+### Migración a Opus 4.8 / Fable 5
 
 1. **Sé específico sobre comportamiento deseado**
-2. **Migra away de prefilled responses** — ya no soportadas en Claude 4.6
-3. **Ajusta anti-laziness prompting** — Claude 4.6 es más proactivo
-4. **Actualiza thinking configuration** — usa adaptive thinking con effort parameter
+2. **Elimina los prefilled responses** — ya no se soportan desde Claude 4.6 (devuelven error 400)
+3. **Ajusta el anti-laziness prompting** — los modelos recientes son más proactivos
+4. **Migra de `budget_tokens` a `effort`** — usa adaptive thinking con el parámetro `effort`
+5. **Sube el `effort` antes de "promptear alrededor"** — si ves razonamiento superficial en problemas complejos, sube el nivel en vez de añadir instrucciones
 
 ---
 
@@ -144,11 +168,13 @@ client.messages.create(
 
 Fuente: [platform.openai.com/docs/guides/prompt-engineering](https://platform.openai.com/docs/guides/prompt-engineering)
 
-### Modelos actuales (Marzo 2026)
+### Modelos actuales (Junio 2026)
 
-- **GPT-5.4** — Último modelo de la serie GPT-5
-- **GPT-5** — Modelo principal de la serie GPT
-- **Reasoning models (o-series)** — Generan cadena de pensamiento interna
+- **GPT-5.5** — Modelo flagship. 1M contexto, 128K output, cutoff Dic 2025. Soporta `reasoning_effort`. ($5 / $30 por MTok)
+- **GPT-5.4** — Generación previa de alto rendimiento ($2.50 / $15 por MTok)
+- **GPT-5.4-mini** — Equilibrio costo/capacidad, 400K contexto ($0.75 / $4.50 por MTok)
+- **GPT-5.4-nano** — El más rápido y económico para tareas de alto volumen
+- Todos los modelos GPT-5.x son razonadores: generan cadena de pensamiento interna y aceptan `reasoning_effort`.
 
 ### Estructura de mensajes
 
@@ -179,31 +205,34 @@ Piensa en developer como la función y user como los argumentos.
 - Entre los primeros parámetros del request JSON
 - Esto ahorra costo y latencia en requests repetidas
 
-### Reusable prompts
+### Prompts reutilizables (DEPRECADO — versiona en código)
 
-- Crea prompts reutilizables en el dashboard de OpenAI
-- Usa placeholders: `{{customer_name}}`
-- Referencia por ID en el API: `prompt: { id: "pmpt_abc123", variables: {...} }`
+⚠️ Los objetos de prompt reutilizables del dashboard fueron des-enfatizados (2026-06-03) y el endpoint `v1/prompts` se apaga el **2026-11-30**.
 
-### Modelos razonadores (o-series)
+- **Recomendación actual:** versiona tus prompts **en tu propio código/repositorio**, no como objetos en el dashboard
+- Trátalos como código: control de versiones, code review, evals automatizadas
+- Usa plantillas/placeholders propios (ej: `{{customer_name}}`) e inyéctalos desde tu aplicación
 
-- Generan cadena de pensamiento interna
-- Mejor para tareas complejas multi-paso
-- Más lentos y caros que GPT estándar
+### Control de razonamiento (`reasoning_effort`)
+
+- Los modelos GPT-5.x generan cadena de pensamiento interna; mejor para tareas complejas multi-paso
+- Controla la profundidad con el parámetro **`reasoning_effort`**: `none`, `low`, `medium`, `high`, `xhigh`
+  - `none` / `low` → respuestas rápidas y económicas para tareas simples
+  - `high` / `xhigh` → razonamiento profundo para problemas difíciles (más lento y caro)
 - Benefician de instrucciones más explícitas sobre CÓMO lograr la tarea
-- **NUEVO:** Usan el parámetro `reasoning: {effort: "low"}` para controlar profundidad
+- Sé explícito con el formato y los criterios de éxito; evita CoT manual redundante (ya razonan internamente)
 
-### Agentic Tasks (NUEVO)
+### Agentic Tasks
 
-Para tareas agenticas y de largo alcance con GPT-5:
+Para tareas agenticas y de largo alcance con GPT-5.5:
 
 - **Planificación y persistencia:** Instruye al modelo a resolver completamente la query antes de ceder control
 - **Preambles para transparencia:** Pide al modelo que explique por qué llama a una herramienta
 - **Progress tracking con TODOs:** Usa herramientas de lista TODO para tracking estructurado
 
-### Frontend Engineering (NUEVO)
+### Frontend Engineering
 
-GPT-5 es excelente construyendo frontends complejos:
+GPT-5.5 es excelente construyendo frontends complejos:
 
 - **Librerías recomendadas:** Tailwind CSS, shadcn/ui, Radix Themes (styling), Lucide/Material Symbols (icons), Motion (animación)
 - **Zero-to-one web apps:** Puede generar apps completas desde un solo prompt
@@ -211,7 +240,7 @@ GPT-5 es excelente construyendo frontends complejos:
 
 ### Versionado
 
-- Fija versiones específicas en producción (ej: `gpt-4.1-2025-04-14`)
+- Fija versiones con snapshot fechado en producción (ej: `gpt-5.5-YYYY-MM-DD`) en lugar del alias evergreen `gpt-5.5`
 - Construye evals para medir comportamiento de tus prompts
 - Monitorea performance al cambiar modelos
 
@@ -219,140 +248,111 @@ GPT-5 es excelente construyendo frontends complejos:
 
 ## Google — Gemini
 
-Fuentes: [workspace.google.com/blog](https://workspace.google.com/blog/productivity-collaboration/because-you-asked-take-prompting-to-the-next-level), [philschmid.de](https://www.philschmid.de/gemini-3-prompt-practices)
+Fuente: [Gemini 3 prompting guide — Google Cloud](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/start/gemini-3-prompting-guide) (oficial)
 
-### Gemini 3 Pro (Noviembre 2025)
+### Modelos actuales (Junio 2026)
 
-Gemini 3 Pro es significativamente mejor que 2.5 Pro en todas las tareas. Favorito sobre persuasión, lógica sobre verbosidad.
+- **Gemini 3.1 Pro** — Modelo destacado de la familia Gemini 3; máxima capacidad para problemas complejos, texto largo, matemáticas y razonamiento
+- **Gemini 3.5 Flash** — Rápido y eficiente para alto volumen
+- También disponibles: Gemini 3 Flash, Gemini 3.1 Flash-Lite, y los previos Gemini 2.5 Pro / 2.5 Flash
 
-### Los 4 elementos esenciales
+> Gemini 3 supera significativamente a 2.5 en todas las tareas, prioriza la lógica sobre la verbosidad y es **menos verboso por defecto**.
 
-1. **Persona** — quién es Gemini (ej: "Eres un gerente de marketing senior")
-2. **Task** — qué hacer claramente
-3. **Context** — background, audiencia, propósito, objetivo
-4. **Format** — cómo debe verse la salida
+### Parámetros recomendados (oficial)
 
-Si falta alguno, Gemini lo adivina → mayor riesgo de error.
+- **Temperature = 1.0 (default):** Google **recomienda fuertemente mantener `temperature` en su valor por defecto de `1.0`**. El razonamiento de Gemini 3 está optimizado para ese valor.
+  - ⚠️ Bajarla (<1.0) puede causar **comportamiento inesperado, loops o degradación**, sobre todo en tareas matemáticas/razonamiento.
+- **Latencia baja:** fija el thinking level en `LOW` y usa una system instruction como `think silently`.
 
-### Principios clave de Gemini 3
+### Verbosidad
 
-- **Instrucciones precisas:** Sé conciso. Gemini 3 responde mejor a instrucciones directas y claras.
-- **Consistencia y parámetros definidos:** Mantén estructura uniforme (ej: tags XML estandarizados) y define términos ambiguos explícitamente.
-- **Output Verbosity:** Por defecto es menos verboso. Si quieres tono conversacional, pídelo explícitamente.
-- **Multimodal Coherence:** Texto, imágenes, audio y video son inputs de igual clase. Instrucciones deben referenciar modalidades específicas.
-- **Constraint Placement:** Coloca restricciones de comportamiento y roles en la System Instruction o al inicio del prompt.
-- **Long Context Structure:** Con contextos largos (libros, codebases), coloca instrucciones AL FINAL después de los datos.
-- **Context Anchoring:** Al transicionar de un bloque de datos a tu query, usa frases puente como "Basándote en la información anterior..."
+- Por defecto Gemini 3 es **directo y poco verboso**.
+- Si necesitas un tono conversacional, **debes pedirlo explícitamente**, p.ej.:
+  > `Explain this as a friendly, talkative assistant.`
 
-### Reasoning and Planning (NUEVO)
+### Estructura del prompt y posición de instrucciones (oficial)
 
-- **Explicit Planning & Decomposition:** Antes de la respuesta final, parsea el objetivo en sub-tareas, verifica si la información está completa, crea un outline estructurado.
-- **Self-updating TODO Tracker:** Crea una lista TODO para trackear progreso.
-- **Critique its own output:** Revisa la salida generada contra las restricciones originales del usuario.
+Gemini 3 puede **descartar restricciones negativas, de formato o cuantitativas** (conteos de palabras, etc.) si aparecen demasiado pronto. Coloca tu petición central y tus restricciones más críticas como **última línea**. Orden recomendado:
 
-### Structured Prompting (NUEVO)
-
-Usa XML-style tagging o Markdown para estructurar prompts. Proporciona límites inequívocos. No mezcles XML y Markdown; elige uno.
-
-**Ejemplo XML:**
-```xml
-<rules>
-    1. Be objective.
-    2. Cite sources.
-</rules>
-
-<planning_process>
-    1. Analyze the Request
-    2. Decompose
-    3. Strategize
-    4. Verify
-</planning_process>
-
-<context>
-    [Insert User Input Here]
-</context>
+```
+[Contexto y material fuente]
+[Instrucciones de la tarea principal]
+[Restricciones negativas, de formato y cuantitativas]   ← AL FINAL
 ```
 
-### Agentic Tool Use (NUEVO)
+- **Contexto largo (libros, codebases, videos):** coloca la pregunta/instrucción **AL FINAL, después de los datos**. Ancla el razonamiento abriendo con `Based on the entire document above...`
+  > Evita que el modelo deje de procesar tras la primera coincidencia relevante.
 
-- **The Persistence Directive:** Eres un agente autónomo. Continúa trabajando hasta que la query esté COMPLETAMENTE resuelta.
-- **Pre-Computation Reflection:** Antes de llamar a cualquier herramienta, explica: por qué la llamas, qué datos esperas, cómo ayudan a resolver el problema.
+### Deducción vs. información externa (oficial)
 
-### Formulación efectiva
+Negativos amplios como `do not infer` o `do not guess` **son contraproducentes**: el modelo puede sobre-indexar y fallar en lógica/aritmética básica.
 
-- **Usa imperativos**, no preguntas: "Crea una lista..." en vez de "¿Puedes crear una lista?"
-- **21 palabras promedio** es el sweet spot — la mayoría de usuarios da menos de 9
-- **Incluye detalles de contexto:** timing, metas, audiencia, longitud de sesión
+- ❌ Poco efectivo: `What was the profit? Do not infer.`
+- ✅ Efectivo:
+  > `You are expected to perform calculations and logical deductions based strictly on the provided text. Do not introduce external information.`
 
-### Enfoque iterativo
+### Grounding: el contexto como única fuente de verdad
 
-- Trata prompting como conversación, no monólogo
-- Cada respuesta es una oportunidad para refinar el siguiente prompt
-- Pide a Gemini que genere preguntas de clarificación: "¿Qué 10 preguntas debo hacer para confirmar que esto alinea con mi estrategia?"
+Para hipótesis que contradicen el mundo real, el modelo puede revertir a sus datos de entrenamiento. Declara explícitamente que el contexto proporcionado es la **única** fuente de verdad de la sesión y que debe reportar solo lo que aparece, sin inferir.
 
-### Posición de instrucciones
+### Verificación en dos pasos (anti-alucinación)
 
-- **Contextos largos (libros, codebases, videos):** pon instrucciones AL FINAL después de los datos
-- **Prompts cortos:** pon restricciones de comportamiento y roles AL INICIO
+Para datos oscuros o capacidades que el modelo quizá no tenga (p.ej. acceder a una URL en vivo), divide el prompt: **1)** verifica que la info/capacidad existe; **2)** solo entonces genera.
 
-### Referencias cruzadas
+> `Verify with high confidence if you're able to access [X]. If you cannot verify, state 'No Info' and STOP. If verified, proceed to generate a response.`
 
-- Incluye referencias a archivos de Google Workspace: `@DocumentName en Docs`
-- Crea status updates que referencien múltiples archivos de Drive
-- Requiere habilitar Google Workspace extensions
+### Personas (toma el rol en serio)
+
+Gemini 3 trata el rol asignado con seriedad y **a veces ignora instrucciones** para mantener la coherencia con la persona. Revisa el rol asignado y evita ambigüedades.
+
+> `You are a data extractor. You are forbidden from clarifying, explaining, or expanding terms. Output text exactly as it appears. Do not explain why.`
+
+### Estructura recomendada (los 4 elementos)
+
+1. **Persona** — quién es Gemini
+2. **Task** — qué hacer claramente
+3. **Context** — background, audiencia, propósito
+4. **Format** — cómo debe verse la salida
+
+Usa tags XML-style o Markdown para delimitar secciones; mantén la estructura consistente y define términos ambiguos. Usa imperativos (`Crea una lista...`) en vez de preguntas.
 
 ---
 
 ## xAI — Grok
 
-Fuentes: [docs.x.ai](https://docs.x.ai/developers/advanced-api-usage/grok-code-prompt-engineering), [promptbuilder.cc](https://promptbuilder.cc/blog/grok-prompt-guide-2026)
+Fuente: [docs.x.ai/docs/models](https://docs.x.ai/docs/models) (oficial)
 
-### Grok Code Fast 1 (NUEVO)
+### Modelos actuales (Junio 2026)
 
-Modelo agentic ligero diseñado para pair-programming en herramientas de coding:
+- **Grok 4.3** — Modelo flagship unificado (chat + coding). 1M contexto. ($1.25 / $2.50 por MTok)
+- **grok-4.20** (`grok-4.20-0309`) — Disponible en variantes razonadora y no-razonadora
+- **grok-4.1-fast** — Optimizado para baja latencia
+- **grok-build-0.1** — Enfocado en coding agentic, 256K contexto ($1 / $2 por MTok)
 
-- **4x más rápido** que modelos comparables
-- **1/10 del costo** de otros modelos agentic
-- **Reasoning model** con tool-calling intercalado durante thinking
-- **Thinking traces** accesibles via streaming: `chunk.choices[0].delta.reasoning_content`
+> Los IDs aceptan aliases `-latest` y fechados `-<YYYYMMDD>`. Fija el ID fechado en producción.
 
-### Para usuarios de Grok Code Fast 1
+### Para coding y tareas agenticas
 
 1. **Proveer contexto necesario:** Selecciona código específico, especifica file paths, project structures
 2. **Establecer metas explícitas:** Define objetivos y problemas específicos
-3. **Refinar continuamente:** Aprovecha la velocidad y costo para iterar rápidamente
-4. **Asignar tareas agenticas:** Ideal para navegar grandes cantidades de código con herramientas
+3. **Refinar continuamente:** Itera rápido aprovechando velocidad y costo
+4. **Usa native tool calling** — diseñado para esto, mejor que XML-based
+5. **System prompt detallado:** Describe tarea, expectativas, casos edge
+6. **Optimiza para cache hits** — un prefix estable se recupera de cache automáticamente
 
-### Para desarrolladores construyendo coding agents
-
-- **Usa native tool calling** — diseñado específicamente para esto, mejor que XML-based
-- **System prompt detallado:** Describe tarea, expectativas, casos edge
-- **Introduce contexto con XML tags o Markdown** para claridad
-- **Optimiza para cache hits** — prefix estable se recupera de cache automáticamente
-
-### Fórmula de 4 partes (Prompt Builder)
+### Fórmula de 4 partes
 
 1. **Goal** — objetivo exacto en una oración
 2. **Context** — audiencia, inputs, restricciones, paths de archivos
 3. **Output Format** — estructura, tabla, JSON, longitud, estilo de código
 4. **Quality Bar** — qué incluir, qué evitar, cómo manejar incertidumbre
 
-### 30 Prompts por Caso de Uso (NUEVO)
+### Características y notas de API
 
-**Marketing (10 prompts):**
-- Landing page rewrite, SEO title/meta, email sequence, ad angle testing, competitor teardown, LinkedIn calendar, case study, ecommerce PDP, internal linking, weekly performance summary
-
-**Coding (10 prompts):**
-- Refactor request, bug triage, unit tests, API contract validator, PR review, SQL optimization, migration plan, error handling, feature spec, release notes
-
-**Content (10 prompts):**
-- Blog outline, article rewrite, FAQ generator, newsletter, YouTube script, content repurposing, editorial brief, fact-check checklist, content update, editorial QA
-
-### Características únicas de Grok
-
-- **Think Mode** — para razonamiento complejo
-- **DeepSearch** — datos en tiempo real de X/Twitter
-- **4x más rápido** que modelos comparables → soporta iteración rápida
+- **Sin restricción en el orden de roles:** `system`, `user` y `assistant` pueden ir en cualquier orden
+- **Datos en tiempo real:** requiere habilitar **Web Search / X Search** explícitamente (no es automático)
+- **Razonamiento:** las variantes razonadoras exponen el thinking; intercala tool-calling durante el pensamiento
+- **`logprobs` no está soportado** en los modelos 4.20 y posteriores
 - **Herramientas nativas** sobre XML para mejor performance
 
 ### Errores comunes
@@ -370,13 +370,19 @@ Grok penaliza más que otros modelos los prompts vagos. Siempre especifica.
 
 ## Meta — LLaMA
 
-Fuente: [aws.amazon.com](https://aws.amazon.com/blogs/machine-learning/best-prompting-practices-for-using-meta-llama-3-with-amazon-sagemaker-jumpstart/)
+Fuentes: [AWS — Llama 3 prompting](https://aws.amazon.com/blogs/machine-learning/best-prompting-practices-for-using-meta-llama-3-with-amazon-sagemaker-jumpstart/), disponibilidad de modelos vía Vertex AI Model Garden
 
-*Nota: La fuente oficial de llama.com no está disponible actualmente. Información basada en documentación de AWS para Llama 3.*
+*Nota: la guía oficial de prompting de llama.com no está accesible actualmente. Las técnicas siguientes son model-agnostic; el chat template mostrado corresponde a Llama 3.x.*
 
-### Formato de chat template
+### Modelos actuales (Junio 2026)
 
-LLaMA usa formato específico:
+- **Llama 4 Maverick** — Modelo grande multimodal (texto + imagen), el más capaz de la familia Llama 4
+- **Llama 4 Scout** — Variante más eficiente, contexto largo
+- **Llama 3.3** — Modelo de texto previo, ampliamente soportado
+
+> Llama 4 (Maverick/Scout) es multimodal de forma nativa. Para detalles de plantilla de chat de Llama 4, consulta la documentación del proveedor (los tokens difieren de Llama 3.x).
+
+### Formato de chat template (Llama 3.x)
 
 ```
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -418,88 +424,74 @@ What can you help me with?<|eot_id|><|start_header_id|>assistant<|end_header_id|
 
 ## DeepSeek
 
-Fuentes: [chat-deep.ai](https://chat-deep.ai/guide/deepseek-prompts/), [yuv.ai](https://yuv.ai/learn/deepseek)
+Fuente: [api-docs.deepseek.com](https://api-docs.deepseek.com/) (oficial)
 
-### DeepSeek V3.2 (Marzo 2026) — Modelo Unificado
+### DeepSeek V4 (Junio 2026)
 
-DeepSeek ahora ejecuta un **modelo unificado V3.2** en dos modos:
+DeepSeek V4 reemplaza al modelo unificado V3.2. Ahora hay **dos modelos** y el razonamiento se controla con un **toggle de thinking** sobre el mismo modelo (ya no son endpoints separados):
 
-| Característica | Thinking Mode (deepseek-reasoner) | Chat Mode (deepseek-chat) |
+| | `deepseek-v4-flash` | `deepseek-v4-pro` |
 |---|---|---|
-| Modelo subyacente | DeepSeek-V3.2 | DeepSeek-V3.2 |
-| System prompt | Soportado pero mantener mínimo | Usar libremente para personas |
-| Few-shot examples | Degrada performance | Funciona bien |
-| "Think step by step" | Contraproducente (built in) | Útil cuando se necesita |
-| Temperature | Ignorado por API | Completamente ajustable |
-| JSON mode | Soportado | Excelente |
-| Tool calls | Soportado (innovación V3.2) | Completamente soportado |
-| Max output tokens | Default 32K, max 64K | Default 4K, max 8K |
-| Mejor para | Razonamiento complejo, matemáticas, lógica | Todo lo demás |
+| Uso | Alto volumen, rápido y económico | Máxima capacidad |
+| Contexto | 1M tokens | 1M tokens |
+| Max output | 384K tokens | 384K tokens |
+| Precio cache-hit (in) | $0.0028 / 1M | $0.003625 / 1M |
+| Precio cache-miss (in) | $0.14 / 1M | $0.435 / 1M |
+| Precio output | $0.28 / 1M | $0.87 / 1M |
 
-### Decisión crítica: modo antes del prompt
+> ⚠️ **Deprecación:** `deepseek-chat` y `deepseek-reasoner` se retiran el **2026-07-24 15:59 UTC**. Migra a `deepseek-v4-flash` / `deepseek-v4-pro`.
 
-Antes de escribir, elige modo:
+### Thinking: toggle y `reasoning_effort`
 
-| Modo | Cuándo usar | Cómo funciona |
-|---|---|---|
-| **Thinking (deepseek-reasoner)** | Matemáticas, debugging, estrategia, lógica compleja | Genera cadena de pensamiento interna. Más lento, más caro, más preciso en hard problems |
-| **Chat (deepseek-chat)** | Todo lo demás, contenido, herramientas, propósito general | Rápido, versátil, optimizado para structured outputs |
+- **Thinking activo por defecto** (`enabled`). Conmútalo con:
+  ```json
+  { "thinking": { "type": "enabled" } }   // o "disabled"
+  ```
+- **`reasoning_effort`** acepta `high` y `max` (los valores `low`/`medium` se mapean a `high`; `xhigh` se mapea a `max`).
+- Los **agentes de coding (Claude Code, OpenCode, etc.) usan `max` automáticamente**.
+- ⚠️ **Con thinking activo NO se soportan** `temperature`, `top_p` ni penalties (se ignoran).
+- La cadena de pensamiento se expone en el campo **`reasoning_content`**.
+- **Tool calls** y **JSON** funcionan en ambos modos; **FIM** (fill-in-the-middle) solo sin thinking.
 
-⚠️ **Error común:** usar thinking mode por defecto pensando que es "más inteligente". Es más lento, más caro, y peor para structured outputs.
+### Reglas fundamentales
 
-### 3 reglas fundamentales
+1. **Elige el modelo por costo/capacidad** (flash vs pro) y **activa/desactiva thinking** según la tarea (razonamiento complejo → thinking on; structured output simple/baja latencia → thinking off)
+2. **Name the artifact** — especifica EXACTAMENTE qué quieres: diff, JSON, tabla, resumen de 200 palabras, archivo pytest. No pidas "ayuda" o "explica"
+3. **Less is more con thinking activo** — elimina system prompts elaborados, few-shot y "think step by step"; el modelo razona internamente y el scaffolding externo interfiere
 
-1. **Match mode to task** — enruta al modo correcto según complejidad
-2. **Name the artifact** — especifica EXACTAMENTE qué quieres: diff, JSON, tabla, resumen de 200 palabras, pytest file. No pidas "ayuda" o "explica"
-3. **Less is more para thinking mode** — elimina system prompts elaborados, few-shot y CoT instructions. DeepSeek thinking mode maneja razonamiento internamente; agregar scaffolding externo causa interferencia
+### Con thinking activo
 
-### Diferencia clave vs ChatGPT
+- Prompt mínimo: solo el problema, sin instrucciones de razonamiento ni ejemplos de CoT
+- No fijes `temperature`/`top_p` (se ignoran)
+- Nombra el artefacto de salida claramente
 
-- Los prompts de ChatGPT funcionan en DeepSeek pero producen resultados subóptimos
-- Los system prompts detallados que mejoran ChatGPT EMPEORAN el thinking mode de DeepSeek
-- Simplifica prompts para thinking mode
-- Usa formatos estructurados para chat mode
-
-### Para chat mode
+### Sin thinking (modo directo)
 
 - System prompts detallados y persona instructions sí funcionan
-- Usa flags como "unsubstantiated claims" para aprovechar razonamiento analítico
-- Estructura con secciones explícitas para forzar organización
-- **XML-structured prompts** funcionan excepcionalmente bien
+- `temperature`/`top_p` completamente ajustables
+- Estructura con secciones explícitas; **los prompts con XML** funcionan excepcionalmente bien
+- Óptimo para structured outputs, herramientas y FIM
 
-### Para thinking mode
+### Context Caching (automático)
 
-- Prompt mínimo: solo el problema, sin instrucciones de razonamiento
-- No agregues ejemplos de CoT — el modelo lo hace internamente
-- Nombre el artefacto de salida claramente
+DeepSeek cachea prefixes repetidos a nivel de API. El cache-hit es ~50x más barato que cache-miss (p.ej. flash: $0.0028 vs $0.14 por 1M).
 
-### Context Caching (NUEVO)
-
-DeepSeek automáticamente cachea prefixes repetidos a nivel de API:
-
-- **Tokens cacheados:** $0.028 por millón
-- **Tokens frescos:** $0.28 por millón
-- **Descuento:** 90%
-- **Diseña prompts** con system prompts y few-shot examples al inicio para maximizar cache hits
-
-### Clarificación antes de grandes entregables
-
-- Usa formato multiple-choice para prevenir suposiciones erradas
-- Mantiene el intercambio ágil antes de escribir planes de negocio o specs técnicos
+- Coloca system prompts y contenido estable **al inicio** para maximizar cache hits
 
 ---
 
 ## Comparativa rápida
 
-| Aspecto | Claude 4.6 | GPT-5 | Gemini 3 | Grok | LLaMA | DeepSeek V3.2 |
+| Aspecto | Claude (Opus 4.8/Fable 5) | GPT-5.5 | Gemini 3.1 | Grok 4.3 | LLaMA 4 | DeepSeek V4 |
 |---|---|---|---|---|---|---|
-| Estructura preferida | XML tags | Markdown + XML | 4 elementos + XML | 4-part formula | Chat template | Minimal (think) / Estructurado (chat) |
-| Ejemplos | 3-5, diversos | 3-5 | 1+ | Incluir explícitos | 1-3 (few-shot) | Evitar en think mode |
-| Contexto largo | Docs al inicio, query al final | Cacheable al inicio | Instrucciones al final | Context upfront | Re-enunciar en turnos | Depende del modo |
-| Rol/Persona | System prompt | developer role | Persona explícita | Parte de la formula | Header role | System prompt (solo chat) |
-| Formato salida | Prosa o XML | Markdown + XML | Imperativo | Especificar explícitamente | Especificar explícitamente | Name the artifact |
-| Thinking/Reasoning | Adaptive thinking con effort | Reasoning models (o-series) | Reasoning and Planning | Think Mode | Chain-of-thought | Thinking mode (V3.2) |
-| Errores comunes | Ser vago | Saltar estructura | Falta de elementos | Ser vago | No usar template | Usar think mode innecesariamente |
+| Estructura preferida | XML tags | Markdown + XML | 4 elementos + XML/MD | 4-part formula | Chat template | Minimal (thinking) / Estructurado |
+| Ejemplos | 3-5, diversos | 3-5 | 1+ | Incluir explícitos | 1-3 (few-shot) | Evitar con thinking on |
+| Contexto largo | Docs al inicio, query al final | Cacheable al inicio | Instrucciones al final | Context upfront | Re-enunciar en turnos | Prefix estable al inicio |
+| Rol/Persona | System prompt | developer role | Persona explícita (la toma en serio) | Roles en cualquier orden | Header role | System prompt (thinking off) |
+| Formato salida | Prosa o XML | Markdown + XML | Restricciones AL FINAL | Especificar explícitamente | Especificar explícitamente | Name the artifact |
+| Thinking/Reasoning | Adaptive thinking + `effort` (low→max/xhigh) | `reasoning_effort` (none→xhigh) | Adaptive; `LOW` + "think silently" | Variantes razonadoras | Chain-of-thought | Toggle `thinking` + `reasoning_effort` (high/max) |
+| Parámetros | `effort` afecta todos los tokens | Roles developer/user/assistant | **`temperature=1.0`** (no bajar) | `logprobs` no en 4.20+ | temperature/top-k/top-p | Sin `temperature` con thinking on |
+| Errores comunes | Ser vago; usar prefill (400) | Saltar estructura | Bajar temperature; negativos amplios | Ser vago | No usar template | Usar thinking innecesariamente |
 
 ---
 
@@ -523,10 +515,11 @@ DeepSeek automáticamente cachea prefixes repetidos a nivel de API:
 
 ### Para reducir costos
 
-1. **Prompt caching** — contenido repetido al inicio del prompt (90% descuento en DeepSeek)
-2. **Modelos pequeños para tareas simples** — no uses opus/gpt-5 para resúmenes básicos
-3. **Salidas concisas** — pide "responde en máximo X líneas"
-4. **Evita system prompts gigantes** — solo incluye lo necesario
+1. **Prompt caching** — contenido repetido al inicio del prompt (cache-hit hasta ~50x más barato en DeepSeek)
+2. **Modelos pequeños para tareas simples** — no uses Opus/GPT-5.5/V4-pro para resúmenes básicos; usa Haiku, GPT-5.4-nano, Flash, v4-flash
+3. **Baja el `effort`/`reasoning_effort`** para tareas simples o sensibles a latencia
+4. **Salidas concisas** — pide "responde en máximo X líneas"
+5. **Evita system prompts gigantes** — solo incluye lo necesario
 
 ### Errores universales
 
@@ -540,4 +533,4 @@ DeepSeek automáticamente cachea prefixes repetidos a nivel de API:
 
 ---
 
-*Compilado: 2026-03-28 | Fuentes: Anthropic, OpenAI, Google, xAI, Meta, DeepSeek*
+*Compilado: 2026-06-22 | Fuentes oficiales: Anthropic, OpenAI, Google, xAI, Meta, DeepSeek*
