@@ -4,7 +4,7 @@ Referencia compilada de guías oficiales de los principales proveedores de LLMs.
 
 **Fuentes:** Anthropic (Claude), OpenAI (GPT), Google (Gemini), xAI (Grok), Meta (LLaMA), DeepSeek
 
-**Fecha:** 2026-06-22
+**Fecha:** 2026-07-02
 
 ---
 
@@ -40,15 +40,15 @@ Estos principios aplican a TODOS los modelos:
 
 Fuente: [docs.anthropic.com](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/claude-prompting-best-practices)
 
-### Modelos actuales (Junio 2026)
+### Modelos actuales (Julio 2026)
 
 - **Claude Fable 5** (`claude-fable-5`) — El modelo más capaz de disponibilidad general. Para el razonamiento más exigente y trabajo agentic de largo alcance. Adaptive thinking siempre activo. 1M contexto, 128K output. ($10 / $50 por MTok)
 - **Claude Mythos 5** (`claude-mythos-5`) — Sucesor de Claude Mythos Preview; disponibilidad limitada vía Project Glasswing (acceso por invitación)
 - **Claude Opus 4.8** (`claude-opus-4-8`) — El modelo Opus más capaz para razonamiento complejo y coding agentic. Flagship recomendado para empezar. 1M contexto, 128K output, cutoff de conocimiento Ene 2026. ($5 / $25 por MTok)
-- **Claude Sonnet 4.6** (`claude-sonnet-4-6`) — El mejor equilibrio entre velocidad e inteligencia. 1M contexto. ($3 / $15 por MTok)
+- **Claude Sonnet 5** (`claude-sonnet-5`) — El mejor equilibrio entre velocidad e inteligencia. Adaptive thinking activo por defecto. 1M contexto, 128K output, cutoff Ene 2026. ($3 / $15 por MTok; **precio introductorio $2 / $10 hasta 2026-08-31**)
 - **Claude Haiku 4.5** (`claude-haiku-4-5`) — El modelo más rápido con inteligencia casi-frontier. 200K contexto. ($1 / $5 por MTok)
 
-> **Legacy (aún disponibles):** Opus 4.7, Opus 4.6, Sonnet 4.5, Opus 4.5. Opus 4.1 está deprecado (retiro: 2026-08-05).
+> **Legacy (aún disponibles):** Opus 4.7, Opus 4.6, **Sonnet 4.6**, Sonnet 4.5, Opus 4.5. Opus 4.1 está deprecado (retiro: 2026-08-05).
 >
 > **Nota de naming:** desde la generación 4.6 los IDs usan formato sin fecha (`claude-opus-4-8`) pero siguen siendo snapshots fijos, no punteros evergreen.
 
@@ -114,7 +114,7 @@ Tu tarea es analizar...
 
 ### Thinking, Reasoning y parámetro `effort`
 
-Los modelos recientes usan **adaptive thinking**: el modelo decide dinámicamente cuándo y cuánto pensar. Fable 5 y Mythos 5 lo tienen **siempre activo** (`thinking: {type: "disabled"}` es rechazado); en Opus 4.8/4.7/4.6 y Sonnet 4.6 se activa con `thinking: {type: "adaptive"}`.
+Los modelos recientes usan **adaptive thinking**: el modelo decide dinámicamente cuándo y cuánto pensar. Fable 5, Mythos 5 y Sonnet 5 lo tienen **activo por defecto** (en Fable 5/Mythos 5 `thinking: {type: "disabled"}` es rechazado); en Opus 4.8/4.7/4.6 y Sonnet 4.6 se activa con `thinking: {type: "adaptive"}`.
 
 El control recomendado de profundidad es el parámetro **`effort`** (reemplaza a `budget_tokens`, que está deprecado). Afecta a **TODOS** los tokens de la respuesta: texto, llamadas a herramientas y thinking.
 
@@ -122,8 +122,8 @@ El control recomendado de profundidad es el parámetro **`effort`** (reemplaza a
 
 | Nivel | Uso típico | Disponibilidad de los niveles tope |
 |---|---|---|
-| `max` | Razonamiento más profundo, sin límite de tokens | Fable 5, Mythos 5, Opus 4.8/4.7/4.6, Sonnet 4.6 |
-| `xhigh` | Trabajo agentic/coding de largo alcance (>30 min, millones de tokens) | Fable 5, Mythos 5, Opus 4.8, Opus 4.7 |
+| `max` | Razonamiento más profundo, sin límite de tokens | Fable 5, Mythos 5, Opus 4.8/4.7/4.6, Sonnet 5, Sonnet 4.6 |
+| `xhigh` | Trabajo agentic/coding de largo alcance (>30 min, millones de tokens) | Fable 5, Mythos 5, Opus 4.8, Opus 4.7, Sonnet 5 |
 | `high` | **Default.** Razonamiento complejo, coding difícil, tareas agenticas | Todos |
 | `medium` | Equilibrio velocidad/costo/rendimiento | Todos |
 | `low` | Máxima eficiencia (subagentes, tareas simples, latencia baja) | Todos |
@@ -131,7 +131,8 @@ El control recomendado de profundidad es el parámetro **`effort`** (reemplaza a
 - **Default:** el API usa `high` en todas las superficies (incluido Claude Code). `effort: "high"` ≡ omitir el parámetro.
 - **Opus 4.8 (y 4.7):** empieza con `xhigh` para coding/agentic; usa `high` para el resto de cargas sensibles a inteligencia; baja a `medium`/`low` solo si tus evals confirman que mantienen calidad.
 - **Fable 5 (y Mythos 5):** empieza con `high` (default); usa `xhigh` para lo más exigente; `medium`/`low` rinden bien en trabajo rutinario.
-- **Sonnet 4.6:** se recomienda fijar `medium` explícitamente como default para evitar latencia inesperada.
+- **Sonnet 5:** default `high`; adaptive thinking activo por defecto. Sube a `xhigh` para coding/agentic; baja a `medium`/`low` para chat y cargas sensibles a latencia.
+- **Sonnet 4.6 (legacy):** se recomienda fijar `medium` explícitamente como default para evitar latencia inesperada.
 - En `xhigh`/`max`, fija un `max_tokens` grande (64K es un buen punto de partida) para dar espacio a thinking + tool calls.
 - En Opus 4.8/4.7, el thinking manual (`thinking: {type:"enabled", budget_tokens:N}`) **ya no se soporta y devuelve error 400**; usa adaptive thinking + `effort`.
 
@@ -168,13 +169,17 @@ client.messages.create(
 
 Fuente: [platform.openai.com/docs/guides/prompt-engineering](https://platform.openai.com/docs/guides/prompt-engineering)
 
-### Modelos actuales (Junio 2026)
+### Modelos actuales (Julio 2026)
 
 - **GPT-5.5** — Modelo flagship. 1M contexto, 128K output, cutoff Dic 2025. Soporta `reasoning_effort`. ($5 / $30 por MTok)
+- **GPT-5.5-pro** — Opción de mayor inteligencia vía API (recomendado en los docs de reasoning para lo más difícil). ($30 / $180 por MTok)
 - **GPT-5.4** — Generación previa de alto rendimiento ($2.50 / $15 por MTok)
+- **GPT-5.4-pro** — Variante pro de la generación 5.4 ($30 / $180 por MTok)
 - **GPT-5.4-mini** — Equilibrio costo/capacidad, 400K contexto ($0.75 / $4.50 por MTok)
 - **GPT-5.4-nano** — El más rápido y económico para tareas de alto volumen
 - Todos los modelos GPT-5.x son razonadores: generan cadena de pensamiento interna y aceptan `reasoning_effort`.
+
+> **En preview:** **GPT-5.6** está disponible en preview limitado (partners seleccionados); disponibilidad amplia "próximamente", sin precio público aún.
 
 ### Estructura de mensajes
 
@@ -216,8 +221,9 @@ Piensa en developer como la función y user como los argumentos.
 ### Control de razonamiento (`reasoning_effort`)
 
 - Los modelos GPT-5.x generan cadena de pensamiento interna; mejor para tareas complejas multi-paso
-- Controla la profundidad con el parámetro **`reasoning_effort`**: `none`, `low`, `medium`, `high`, `xhigh`
-  - `none` / `low` → respuestas rápidas y económicas para tareas simples
+- Controla la profundidad con el parámetro **`reasoning_effort`**: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`
+  - Los valores soportados son **dependientes del modelo** (algunos aceptan solo un subconjunto). `gpt-5.5` usa `medium` por defecto.
+  - `none` / `minimal` / `low` → respuestas rápidas y económicas para tareas simples
   - `high` / `xhigh` → razonamiento profundo para problemas difíciles (más lento y caro)
 - Benefician de instrucciones más explícitas sobre CÓMO lograr la tarea
 - Sé explícito con el formato y los criterios de éxito; evita CoT manual redundante (ya razonan internamente)
@@ -250,13 +256,15 @@ GPT-5.5 es excelente construyendo frontends complejos:
 
 Fuente: [Gemini 3 prompting guide — Google Cloud](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/start/gemini-3-prompting-guide) (oficial)
 
-### Modelos actuales (Junio 2026)
+### Modelos actuales (Julio 2026)
 
-- **Gemini 3.1 Pro** — Modelo destacado de la familia Gemini 3; máxima capacidad para problemas complejos, texto largo, matemáticas y razonamiento
-- **Gemini 3.5 Flash** — Rápido y eficiente para alto volumen
-- También disponibles: Gemini 3 Flash, Gemini 3.1 Flash-Lite, y los previos Gemini 2.5 Pro / 2.5 Flash
+- **Gemini 3.1 Pro** — Modelo flagship / máxima capacidad; razonamiento-first para workflows agenticos complejos y coding, adaptive thinking, 1M contexto, grounding integrado. (Actualmente en estado **Preview**)
+- **Gemini 3.5 Flash** — GA y modelo **Featured**: inteligencia cercana a Pro a costo/velocidad de Flash (coding nivel Pro, ejecución agentic en paralelo, 1M contexto)
+- **Gemini 3.1 Flash-Lite** — El más económico, optimizado para baja latencia y **tráfico de alto volumen sensible a costo**
+- **Gemini Omni Flash** (Preview) — Modelo Flash para generar/editar video desde texto o assets de referencia
+- También disponibles: Gemini 3 Flash, variantes de imagen (3.1 Flash Image, 3 Pro Image), y los previos Gemini 2.5 Pro / 2.5 Flash
 
-> Gemini 3 supera significativamente a 2.5 en todas las tareas, prioriza la lógica sobre la verbosidad y es **menos verboso por defecto**.
+> Gemini 3 supera significativamente a 2.5 en todas las tareas, prioriza la lógica sobre la verbosidad y es **menos verboso por defecto**. No existe (aún) "Gemini 3.5 Pro" ni "Gemini 4": la línea Pro llega hasta 3.1 Pro.
 
 ### Parámetros recomendados (oficial)
 
@@ -322,11 +330,11 @@ Usa tags XML-style o Markdown para delimitar secciones; mantén la estructura co
 
 Fuente: [docs.x.ai/docs/models](https://docs.x.ai/docs/models) (oficial)
 
-### Modelos actuales (Junio 2026)
+### Modelos actuales (Julio 2026)
 
-- **Grok 4.3** — Modelo flagship unificado (chat + coding). 1M contexto. ($1.25 / $2.50 por MTok)
+- **Grok 4.3** — Modelo flagship unificado (chat + coding). 1M contexto. Soporta `reasoning_effort` (`none`/`low` (default)/`medium`/`high`). ($1.25 / $2.50 por MTok)
 - **grok-4.20** (`grok-4.20-0309`) — Disponible en variantes razonadora y no-razonadora
-- **grok-4.1-fast** — Optimizado para baja latencia
+- **grok-4.20-multi-agent** (`grok-4.20-multi-agent-0309`) — Multi-agente: aquí `reasoning.effort` controla **cuántos agentes colaboran** (4 o 16), no la profundidad; añade el nivel `xhigh`. 1M contexto ($1.25 / $2.50 por MTok)
 - **grok-build-0.1** — Enfocado en coding agentic, 256K contexto ($1 / $2 por MTok)
 
 > Los IDs aceptan aliases `-latest` y fechados `-<YYYYMMDD>`. Fija el ID fechado en producción.
@@ -351,8 +359,9 @@ Fuente: [docs.x.ai/docs/models](https://docs.x.ai/docs/models) (oficial)
 
 - **Sin restricción en el orden de roles:** `system`, `user` y `assistant` pueden ir en cualquier orden
 - **Datos en tiempo real:** requiere habilitar **Web Search / X Search** explícitamente (no es automático)
-- **Razonamiento:** las variantes razonadoras exponen el thinking; intercala tool-calling durante el pensamiento
-- **`logprobs` no está soportado** en los modelos 4.20 y posteriores
+- **Razonamiento (grok-4.3):** se controla con `reasoning_effort` (`none`/`low`/`medium`/`high`); expone razonamiento **resumido** en `reasoning_content` y, opcionalmente, razonamiento **cifrado** vía `include: ["reasoning.encrypted_content"]` (no el CoT crudo)
+- **Restricción en modelos razonadores:** `presencePenalty`, `frequencyPenalty` y `stop` **no se pueden usar** con modelos de razonamiento (la petición devuelve error)
+- **`logprobs` / `top_logprobs` no están soportados** en `grok-4.20` y posteriores (se ignoran silenciosamente si se envían)
 - **Herramientas nativas** sobre XML para mejor performance
 
 ### Errores comunes
@@ -374,7 +383,7 @@ Fuentes: [AWS — Llama 3 prompting](https://aws.amazon.com/blogs/machine-learni
 
 *Nota: la guía oficial de prompting de llama.com no está accesible actualmente. Las técnicas siguientes son model-agnostic; el chat template mostrado corresponde a Llama 3.x.*
 
-### Modelos actuales (Junio 2026)
+### Modelos actuales (Julio 2026)
 
 - **Llama 4 Maverick** — Modelo grande multimodal (texto + imagen), el más capaz de la familia Llama 4
 - **Llama 4 Scout** — Variante más eficiente, contexto largo
@@ -426,7 +435,7 @@ What can you help me with?<|eot_id|><|start_header_id|>assistant<|end_header_id|
 
 Fuente: [api-docs.deepseek.com](https://api-docs.deepseek.com/) (oficial)
 
-### DeepSeek V4 (Junio 2026)
+### DeepSeek V4 (Julio 2026)
 
 DeepSeek V4 reemplaza al modelo unificado V3.2. Ahora hay **dos modelos** y el razonamiento se controla con un **toggle de thinking** sobre el mismo modelo (ya no son endpoints separados):
 
@@ -489,8 +498,8 @@ DeepSeek cachea prefixes repetidos a nivel de API. El cache-hit es ~50x más bar
 | Contexto largo | Docs al inicio, query al final | Cacheable al inicio | Instrucciones al final | Context upfront | Re-enunciar en turnos | Prefix estable al inicio |
 | Rol/Persona | System prompt | developer role | Persona explícita (la toma en serio) | Roles en cualquier orden | Header role | System prompt (thinking off) |
 | Formato salida | Prosa o XML | Markdown + XML | Restricciones AL FINAL | Especificar explícitamente | Especificar explícitamente | Name the artifact |
-| Thinking/Reasoning | Adaptive thinking + `effort` (low→max/xhigh) | `reasoning_effort` (none→xhigh) | Adaptive; `LOW` + "think silently" | Variantes razonadoras | Chain-of-thought | Toggle `thinking` + `reasoning_effort` (high/max) |
-| Parámetros | `effort` afecta todos los tokens | Roles developer/user/assistant | **`temperature=1.0`** (no bajar) | `logprobs` no en 4.20+ | temperature/top-k/top-p | Sin `temperature` con thinking on |
+| Thinking/Reasoning | Adaptive thinking + `effort` (low→max/xhigh) | `reasoning_effort` (none→xhigh, incl. `minimal`) | Adaptive; `LOW` + "think silently" | `reasoning_effort` (none→high); razonamiento resumido | Chain-of-thought | Toggle `thinking` + `reasoning_effort` (high/max) |
+| Parámetros | `effort` afecta todos los tokens | Roles developer/user/assistant; valores effort model-dependent | **`temperature=1.0`** (no bajar) | `logprobs` no en 4.20+; penalties/`stop` dan error en razonadores | temperature/top-k/top-p | Sin `temperature` con thinking on |
 | Errores comunes | Ser vago; usar prefill (400) | Saltar estructura | Bajar temperature; negativos amplios | Ser vago | No usar template | Usar thinking innecesariamente |
 
 ---
@@ -533,4 +542,4 @@ DeepSeek cachea prefixes repetidos a nivel de API. El cache-hit es ~50x más bar
 
 ---
 
-*Compilado: 2026-06-22 | Fuentes oficiales: Anthropic, OpenAI, Google, xAI, Meta, DeepSeek*
+*Compilado: 2026-07-02 | Fuentes oficiales: Anthropic, OpenAI, Google, xAI, Meta, DeepSeek*
