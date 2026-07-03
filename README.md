@@ -1,4 +1,4 @@
-# Guía de Buenas Prácticas de Prompting (Actualizada 2026)
+# Guía de Buenas Prácticas de Prompting (2 de Jul 26)
 
 Referencia compilada de guías oficiales de los principales proveedores de LLMs.
 
